@@ -40,6 +40,8 @@ const byte FRAME_REQUEST = 'r';   // prompts a regular image to be taken and sen
 const byte HOME_REQUEST = 'h';    // prompts device to home stepper motor
 const byte CAL_REQUEST = 'c';     // prompts device to calibrate image temperature values
 const byte AVG_REQUEST = 'a';
+const byte THERM_REQUEST = 't';
+const byte SHUTTER_REQUEST = 's'; // prompts an image of the closed shutter to be taken and transmitted
 const byte DF_START = '[';        // demarcates the beginning of a data frame
 const byte DF_END = ']';          // demarcates the end of a data frame
 const byte CMD_START = '<';       // demarcates the beginning of a serial command
@@ -169,6 +171,16 @@ void sendFrame(){
   moveStepper((int)(ANGLE * STEPS_PER_DEGREE));
 }
 
+void sendShutterImage(){
+  // ensure shutter is positioned over lens
+  if (opticalSensor()){
+    homeStepper(); // locate shutter and position it over lens
+    delay(1000);   // allow image to settle
+  }
+  sendImage();
+  delay(1000);
+}
+
 // Send a response to a ping over serial
 void sendPong(){
   Serial.write(CMD_START);
@@ -208,7 +220,8 @@ void watchSerial(){
         break;
       
       case AVG_REQUEST:
-        Serial.write(FLOAT_START);moveStepper(-1 * (int)(ANGLE * STEPS_PER_DEGREE));
+        Serial.write(FLOAT_START);
+        moveStepper(-1 * (int)(ANGLE * STEPS_PER_DEGREE));
         delay(1000);
         Serial.print(cameraReadAvgTemp());
         delay(1000);
@@ -216,6 +229,17 @@ void watchSerial(){
         Serial.write(FLOAT_END);
         Serial.print("\n");
         Serial.flush();
+        break;
+      
+      case THERM_REQUEST:
+        Serial.write(FLOAT_START);
+        Serial.print(readThermistor());
+        Serial.write(FLOAT_END);
+        Serial.print("\n");
+        Serial.flush();
+
+      case SHUTTER_REQUEST:
+        sendShutterImage();
         break;
 
       default:
